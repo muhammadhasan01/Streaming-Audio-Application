@@ -1,27 +1,56 @@
 import zmq
 import pyaudio
+from PyQt5.QtCore import * 
+from PyQt5.QtGui import * 
+from PyQt5.QtWidgets import * 
+import sys 
 
-context = zmq.Context()
+class Window(QMainWindow): 
+    def __init__(self): 
+        super().__init__() 
+        self.setWindowTitle("Python") 
+        width = 750
+        self.setFixedWidth(width) 
+        self.setFixedHeight(500)
+        self.label = QLabel("Simple Audio Player", self) 
+        self.label.move(0, 0) 
+        self.label.resize(120, 80) 
 
-print("Connecting to the server…")
-socket = context.socket(zmq.SUB)
-socket.connect("tcp://localhost:5555")
-socket.subscribe("")
+        self.button = QPushButton('PyQt5 button', self)
+        self.button.setToolTip('Play')
+        self.button.move(100, 100) 
+        self.button.move(100,70)
+        self.button.clicked.connect(self.on_click)
+        
+        self.show() 
 
-sampleWidth = 2 # Just for example, get from metadata.
-nChannels = 2 # Just for example, get from metadata.
-frameRate = 44100 # Just for example, get from metadata.
+    
+    def on_click(self):
+        for request in range(10):
+            message = socket.recv()
 
-pAudio = pyaudio.PyAudio()
-stream = pAudio.open(
-    format=pAudio.get_format_from_width(sampleWidth),
-    channels=nChannels,
-    rate=frameRate,
-    output=True,
-)
+            stream.write(message)
+            print("Received %sth " % (request))
 
-for request in range(10):
-    message = socket.recv()
+if __name__=='__main__':
+    context = zmq.Context()
+    print("Connecting to the server…")
+    socket = context.socket(zmq.SUB)
+    socket.connect("tcp://localhost:5555")
+    socket.subscribe("")
 
-    stream.write(message)
-    print("Received %sth " % (request))
+    sampleWidth = 2 # Just for example, get from metadata.
+    nChannels = 2 # Just for example, get from metadata.
+    frameRate = 44100 # Just for example, get from metadata.
+
+    pAudio = pyaudio.PyAudio()
+    stream = pAudio.open(
+        format=pAudio.get_format_from_width(sampleWidth),
+        channels=nChannels,
+        rate=frameRate,
+        output=True,
+    )
+
+    app = QApplication(sys.argv)
+    window = Window() 
+    app.exec()
