@@ -19,8 +19,8 @@ class Window(QMainWindow):
         self.button = QPushButton('Button', self)
         self.button.setToolTip('Play')
         self.button.move(100, 100) 
-        self.button.move(100,70)
-        self.button.resize(50, 30) 
+        self.button.move(30,70)
+        self.button.resize(90, 30) 
         self.button.clicked.connect(self.on_click)
 
         self.show() 
