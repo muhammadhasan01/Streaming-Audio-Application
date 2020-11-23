@@ -1,27 +1,57 @@
 import zmq
 import pyaudio
+from PyQt5.QtCore import * 
+from PyQt5.QtGui import * 
+from PyQt5.QtWidgets import * 
+import sys 
 
-context = zmq.Context()
+class Window(QMainWindow): 
+    def __init__(self): 
+        super().__init__() 
+        self.setWindowTitle("Python") 
+        width = 750
+        self.setFixedWidth(width) 
+        self.setFixedHeight(500)
+        self.label = QLabel("Simple Audio Player", self) 
+        self.label.move(30, 0) 
+        self.label.resize(120, 80) 
 
-print("Connecting to the server…")
-socket = context.socket(zmq.SUB)
-socket.connect("tcp://localhost:5555")
-socket.subscribe("")
+        self.button = QPushButton('Button', self)
+        self.button.setToolTip('Play')
+        self.button.move(100, 100) 
+        self.button.move(30,70)
+        self.button.resize(90, 30) 
+        self.button.clicked.connect(self.on_click)
 
-sampleWidth = 2 # Just for example, get from metadata.
-nChannels = 2 # Just for example, get from metadata.
-frameRate = 44100 # Just for example, get from metadata.
+        self.show() 
 
-pAudio = pyaudio.PyAudio()
-stream = pAudio.open(
-    format=pAudio.get_format_from_width(sampleWidth),
-    channels=nChannels,
-    rate=frameRate,
-    output=True,
-)
+    
+    def on_click(self):
+        context = zmq.Context()
+        print("Connecting to the server…")
+        socket = context.socket(zmq.SUB)
+        socket.connect("tcp://localhost:5555")
+        socket.subscribe("")
 
-for request in range(10):
-    message = socket.recv()
+        sampleWidth = 2 # Just for example, get from metadata.
+        nChannels = 2 # Just for example, get from metadata.
+        frameRate = 44100 # Just for example, get from metadata.
 
-    stream.write(message)
-    print("Received %sth " % (request))
+        pAudio = pyaudio.PyAudio()
+        stream = pAudio.open(
+            format=pAudio.get_format_from_width(sampleWidth),
+            channels=nChannels,
+            rate=frameRate,
+            output=True,
+        )
+        for request in range(10):
+            message = socket.recv()
+
+            stream.write(message)
+            print("Received %sth " % (request))
+
+if __name__=='__main__':
+
+    app = QApplication(sys.argv)
+    window = Window() 
+    app.exec()
