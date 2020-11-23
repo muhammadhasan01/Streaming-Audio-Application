@@ -13,13 +13,14 @@ class Window(QMainWindow):
         self.setFixedWidth(width) 
         self.setFixedHeight(500)
         self.label = QLabel("Simple Audio Player", self) 
-        self.label.move(0, 0) 
+        self.label.move(30, 0) 
         self.label.resize(120, 80) 
 
         self.button = QPushButton('Button', self)
         self.button.setToolTip('Play')
         self.button.move(100, 100) 
         self.button.move(100,70)
+        self.button.resize(50, 30) 
         self.button.clicked.connect(self.on_click)
 
         self.show() 
