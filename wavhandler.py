@@ -1,20 +1,27 @@
 import wave
 import sys
 import pyaudio  
-
-from pydub import AudioSegment
-from pydub.utils import make_chunks
+import sender_protocol.const as const
+import math
 
 CHUNK_SIZE = 32767 # In bytes.
 
 class WavHandler():
     def __init__(self, fpath):
-        # self.file = wave.open(fpath,"rb")
-        self.file = AudioSegment.from_file(file=fpath, format="wav")
-
-        self.metadata = self.get_metadata_audio()
-        self.chunks = self.get_chunks_audio()
         self.max_chunk_size = 1024
+        self.fpath = fpath
+
+        self.file = wave.open(fpath, "rb")
+        num_frames = self.file.getnframes()
+        print(self.file)
+        self.metadata = {
+            "sample_width": self.file.getsampwidth(),
+            "num_channels": self.file.getnchannels(), 
+            "sample_rate": self.file.getframerate()
+        }
+        # self.file = AudioSegment.from_file(file=fpath, format="wav") 
+
+        self.chunks = self.get_chunks_audio()
 
     def play_wav_audio(self):
         #define stream chunk   
@@ -45,18 +52,7 @@ class WavHandler():
         player.terminate()  
 
     def get_metadata_audio(self):
-        file = self.file
-
-        # sample width
-        sample_width = file.sample_width
-        # num channel
-        num_channels = file.channels
-        # sample rate
-        sample_rate = file.frame_rate
-
-        return {"sample_width": sample_width, 
-                "num_channels": num_channels, 
-                "sample_rate": sample_rate}
+        return self.metadata
 
     def get_chunks_audio(self):
         nChannels = self.metadata["num_channels"]
@@ -68,9 +64,19 @@ class WavHandler():
 
         chunkTime = 1000 * frameCountPerChunk / frameRate # In milliseconds.
 
-        chunks = make_chunks(self.file, chunkTime) #Make chunks of one sec
+        # chunks = make_chunks(self.file, chunkTime) #Make chunks of one sec
+        chunks = []
+        chunks_bytes = self.file.readframes(self.file.getnframes())
+        for i in range(math.ceil(len(chunks_bytes)/const.MAX_PACKET_LENGTH)):
+            chunk_size = const.MAX_PACKET_LENGTH
+            if ((i+1)*chunk_size+44 > len(chunks_bytes)):
+                chunks.append(chunks_bytes[i*chunk_size + 44:])
+            else:
+                chunks.append(chunks_bytes[i*chunk_size + 44:(i+1)*chunk_size + 44])
+            print(len(chunks[i]))
+        
         print("Length of Chunks: {}".format(len(chunks)))
-        print("Chunks: {}".format(chunks))
+        print("Chunks: {}".format(chunks_bytes[:5]))
         return chunks
 
 if __name__ == "__main__":
@@ -91,27 +97,27 @@ if __name__ == "__main__":
     wavfile = WavHandler(wav_file_path)
     # wavfile.get_chunks_audio()
 
-    from scipy.io.wavfile import read
-    from pydub import AudioSegment
+    # from scipy.io.wavfile import read
+    # from pydub import AudioSegment
 
-    rate, signal = read(wav_file_path)
-    channel1 = signal[:]
+    # rate, signal = read(wav_file_path)
+    # channel1 = signal[:]
 
-    audio_segment = AudioSegment(
-        channel1.tobytes(), 
-        frame_rate=rate,
-        sample_width=channel1.dtype.itemsize, 
-        channels=1
-    )
+    # audio_segment = AudioSegment(
+    #     channel1.tobytes(), 
+    #     frame_rate=rate,
+    #     sample_width=channel1.dtype.itemsize, 
+    #     channels=1
+    # )
 
-    # test that it sounds right (requires ffplay, or pyaudio):
-    from pydub.playback import play
-    play(audio_segment)
+    # # test that it sounds right (requires ffplay, or pyaudio):
+    # from pydub.playback import play
+    # play(audio_segment)
 
-    with wave.open(wav_file_path) as fd:
-        params = fd.getparams()
-        frames = fd.readframes(1000000) # 1 million frames max
-        print("Params: {}".format(params))
-        # print("Frames: {}".format(frames))
+    # with wave.open(wav_file_path) as fd:
+    #     params = fd.getparams()
+    #     frames = fd.readframes(1000000) # 1 million frames max
+    #     print("Params: {}".format(params))
+    #     # print("Frames: {}".format(frames))
 
-    # print(params)
+    # # print(params)

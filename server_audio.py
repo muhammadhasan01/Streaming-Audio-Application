@@ -73,7 +73,7 @@ class StreamThread(threading.Thread):
 		frameCountPerChunk = const.CHUNK_SIZE / frameSize
 		
 		chunkTime = 1000 * frameCountPerChunk / frameRate # In milliseconds.
-		chunkTime = 1000
+		# chunkTime = 1000
 		print("chunkTime: {} ms".format(chunkTime))
 		i = 0
 		for chunk in self.chunks:
@@ -81,7 +81,7 @@ class StreamThread(threading.Thread):
 			startTime = time.time()
 			sending_threads = [
 				#TODO benerin SenderThread
-				SenderThread(fpath=self.fpath, server_address=subscriber, chunk=chunk[], final=False, meta=False) for subscriber in self.subscribers
+				SenderThread(fpath=self.fpath, server_address=subscriber, chunk=chunk, final=False, meta=False) for subscriber in self.subscribers
 			]
 			print("Number of subs in step {}: {}".format(i, len(self.subscribers)))
 			print("Number of active threads in step {}: {}".format(i, len(sending_threads)))

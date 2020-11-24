@@ -31,9 +31,9 @@ if __name__== "__main__":
     #     stream.write(bytes(chunk))
 
     #TODO: receive data and play, or store to buffer (array)
-    # while True:
-    #     if (!False):
-    #         chunk, server_address = s.recvfrom(const.MAX_PACKET_LENGTH)
-    #         # buffer_audio.append(chunk)
-    #         stream.write(chunk)
-    #         #terima
+    while True:
+        if not False:
+            chunk, server_address = s.recvfrom(const.MAX_PACKET_LENGTH)
+            # buffer_audio.append(chunk)
+            stream.write(chunk)
+            #terima
