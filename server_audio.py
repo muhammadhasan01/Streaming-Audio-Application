@@ -76,6 +76,7 @@ class StreamThread(threading.Thread):
 		# chunkTime = 1000
 		print("chunkTime: {} ms".format(chunkTime))
 		i = 0
+		self.chunks.append(bytes("BerhentiDong", "utf-8"))
 		for chunk in self.chunks:
 			print("Start sending chunks {}".format(i))
 			startTime = time.time()
