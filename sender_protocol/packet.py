@@ -1,4 +1,4 @@
-import const
+import sender_protocol.const
 import struct
 
 class ChecksumError(Exception):

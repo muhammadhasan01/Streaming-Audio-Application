@@ -1,4 +1,5 @@
 import os
+import sys
 import socket
 import time
 import threading
@@ -6,7 +7,8 @@ import math
 import packet
 import const
 from collections import deque
-from wavhandler import WavHandler
+
+# SENDER
 
 class SenderThread(threading.Thread):
 
@@ -58,69 +60,18 @@ class SenderThread(threading.Thread):
 				if self.stopped:
 					print("Packet #{} not restarting...".format(self.sequence))
 					break
-# SENDER
-
-class StreamThread(threading.Thread):
-
-	def __init__(self, fpath, subscribers=[], chunk_size):
-		self.fpath = fpath;
-		self.subscribers = subscribers
-		self.chunk_size = chunk_size
-		self.wav = WavHandler(fpath)
-
-		#TODO: pecah2 chunk di fpath jadi chunks, without metadata
-		self.chunks = self.wav.chunks
-	
-	def add_subscriber(self, subscriber):
-    	self.subscribers.append(subscriber)
-	
-	def run(self):
-		# TODO: get from metadata
-		nChannels = self.wav.metadata["num_channels"] # Audio channel count, just for example, get from the WAV metadata.
-		sampleWidth = self.wav.metadta["sample_width"]  # Audio sample width, just for example, get from the WAV metadata.
-		frameRate = self.wav.metadata["sample_rate"] # Audio frame rate, just for example, get from the WAV metadata.
-
-		frameSize = nChannels * sampleWidth # In bytes
-		frameCountPerChunk = CHUNK_SIZE / frameSize
-
-		chunkTime = 1000 * frameCountPerChunk / frameRate # In milliseconds.
-
-		for chunk in self.chunks:
-			startTime = time.time()
-			for subscriber in subscribers:
-				send(chunk, subscriber)
-			endTime = time.time()
-			delta = endTime - startTime
-			if delta < chunkTime:
-    			time.sleep(chunkTime - delta) # Sleep for the remaining time if there is any.
-			# Continue to next chunk
-
-def send(chunk, subscriber):
-	"""
-	chunk: data
-	subscriber: IP address subscriber
-	"""
-	# TODO: bikin send buat StreamThread
-	pass 
 
 
-def add_subscriber(stream_thread, subscriber):
-    """
-	stream_thread: thread for streaming
-	subscriber: IP address for new subscriber
-	"""
-    stream_thread.add_subscriber(subscriber)
+class ConnectorThread(threading.Thread):
 
-
-
-class ListenerThread(threading.Thread):
-
-	def __init__(self, fpath, stream_thread):
-		self.fpath = fpath
-		self.wav = WavHandler(fpath)
-		self.metadata = self.wav.metadata
+	def __init__(self, server_address, fname, total_chunks):
+		super(ConnectorThread, self).__init__()
+		self.server_address = server_address
+		self.fname = fname
+		self.total_chunks = total_chunks
 		self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-		self.stream_thread = stream_thread
+
+		# initialize threads pool
 
 		self.total_threads_pool = deque()
 
@@ -137,12 +88,56 @@ class ListenerThread(threading.Thread):
 		self.final = SenderThread(self.sock, self.server_address, self.fname, total_chunks-1, final=True)
 
 	def run(self):
-		while True:
-			p, address = self.sock.recvfrom(const.MAX_LENGTH)
-			# TODO: Ngirim paket metadata
-			
-			# TODO: Add subscriber
-			add_subscriber(self.stream_thread, address)
+
+		# run threads MAX_SENDER_THREADS at a time
+
+		running_threads_pool = []
+
+		i = 0
+		while self.total_threads_pool and i<const.MAX_SENDER_THREADS:
+			t = self.total_threads_pool.popleft()
+			t.start()
+			running_threads_pool.append(t)
+			i += 1
+
+		# receive ACKs
+
+		while running_threads_pool:
+			try:
+				p, addr = recv_packet(self.sock)
+				assert p.p_type in [const.TYPE_ACK, const.TYPE_MACK]
+				
+				new = []
+				for t in running_threads_pool:
+					if t.sequence == p.p_sequence:
+						t.stop()
+					else:
+						new.append(t)
+
+				running_threads_pool = new
+				
+				if self.total_threads_pool:
+					t = self.total_threads_pool.popleft()
+					t.start()
+					running_threads_pool.append(t)
+
+			except (packet.ChecksumError, packet.LengthError):
+				print("Received bad packet, not stopping resend.")
+				continue
+
+		# FIN
+
+		self.final.start()
+
+		while not self.final.stopped:
+			try:
+				p, addr = recv_packet(self.sock)
+				assert p.p_type == const.TYPE_FINACK
+				assert p.p_sequence == self.final.sequence
+				self.final.stop()
+			except (packet.ChecksumError, packet.LengthError):
+				print("Received bad packet, not stopping resend.")
+				continue
 
 
 def recv_packet(sock):
@@ -164,19 +159,30 @@ def to_addresses(addresses, port):
 
 if __name__ == "__main__":
 
-	port = sys.argv[1]
-	fpath = sys.argv[2]
-			
-	wav = WavHandler(fpath)
-	metadata = wav.metadata
-	chunk_size = wav.chunks
+	IPs = input("Input receiver address(es): ").split(',')
 	RECV_PORT = int(input("Input port of receivers: "))
 
-	stream_thread = StreamThread(fpath=fpath, subscribers=[], chunk_size=chunk_size)
-	
-	print("Listening to subscribe request...")
-	listener_thread = ListenerThread(fpath=fpath, stream_thread=stream_thread)
-	listener_thread.start()
+	server_addresses = to_addresses(IPs, RECV_PORT)
 
-	print("Start sending audio packets...")
-	stream_thread.start()
+	fname = input("Input path of file to send: ")
+
+	total_chunks = get_file_chunks(fname)
+
+	conn_threads = [
+		ConnectorThread(address, fname, total_chunks)
+		for address in server_addresses
+	]
+
+	print("Starting send...")
+
+	if const.MULTITHREADED:
+		for t in conn_threads:
+			t.start()
+		for t in conn_threads:
+			t.join()
+	else:
+		for t in conn_threads:
+			t.start()
+			t.join()
+
+	print("Finished sending to all receivers.")
