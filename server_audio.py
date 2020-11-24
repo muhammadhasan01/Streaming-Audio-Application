@@ -8,6 +8,7 @@ import sender_protocol.packet as packet
 import sender_protocol.const as const
 from collections import deque
 from wavhandler import WavHandler
+import json
 
 class SenderThread(threading.Thread):
 
@@ -21,21 +22,15 @@ class SenderThread(threading.Thread):
 		self.stopped = False
 
 	def get_data(self):
-		# if self.meta:
-    	# 	return
-		# else:
-		return self.chunk
+		if self.meta:
+			wav_metadata = WavHandler(fpath).get_metadata_audio()
+			return bytes(json.dumps(wav_metadata), 'utf-8')
+		else:
+			return self.chunk
 
 	def send_packet(self):
 		data = self.get_data()
-		if self.final:
-			p = packet.Packet(const.TYPE_FIN, self.sequence, data)
-		elif self.meta:
-			p = packet.Packet(const.TYPE_MDATA, self.sequence, data)
-		else:
-			p = packet.Packet(const.TYPE_DATA, self.sequence, data)
-
-		self.sock.sendto(p.to_bytes(), self.server_address)
+		self.sock.sendto(data, self.server_address)
 
 	def stop(self):
 		self.stopped = True
@@ -43,15 +38,15 @@ class SenderThread(threading.Thread):
 	def run(self):
 		while not self.stopped:
 			self.send_packet()
-			print("Packet #{} is being sent to {}.".format(self.sequence, self.server_address))
-
-			t = 0
-			while t < const.RESEND_TIMER:
-				t += const.RESEND_TIMER_TICK
-				time.sleep(const.RESEND_TIMER_TICK)
-				if self.stopped:
-					print("Packet #{} not restarting...".format(self.sequence))
-					break
+			print("Packet is being sent to {}.".format(self.server_address))
+			break
+			# t = 0
+			# while t < const.RESEND_TIMER:
+			# 	t += const.RESEND_TIMER_TICK
+			# 	time.sleep(const.RESEND_TIMER_TICK)
+			# 	if self.stopped:
+			# 		print("Packet #{} not restarting...".format(self.sequence))
+			# 		break
 # SENDER
 
 class StreamThread(threading.Thread):
@@ -78,21 +73,29 @@ class StreamThread(threading.Thread):
 		frameCountPerChunk = const.CHUNK_SIZE / frameSize
 		
 		chunkTime = 1000 * frameCountPerChunk / frameRate # In milliseconds.
+		chunkTime = 1000
+		print("chunkTime: {} ms".format(chunkTime))
+		i = 0
 		for chunk in self.chunks:
+			print("Start sending chunks {}".format(i))
 			startTime = time.time()
 			sending_threads = [
 				#TODO benerin SenderThread
-				SenderThread(server_address, chunk) for subscriber in self.subscribers
+				SenderThread(fpath=self.fpath, server_address=subscriber, chunk=chunk[], final=False, meta=False) for subscriber in self.subscribers
 			]
+			print("Number of subs in step {}: {}".format(i, len(self.subscribers)))
+			print("Number of active threads in step {}: {}".format(i, len(sending_threads)))
 			for t in sending_threads:
 				t.start()
 			for t in sending_threads:
 				t.join()
 			endTime = time.time()
 			delta = endTime - startTime
-			if delta < chunkTime:
-				time.sleep(chunkTime - delta) # Sleep for the remaining time if there is any.
+			if delta < chunkTime/1000:
+				time.sleep(chunkTime/1000 - delta) # Sleep for the remaining time if there is any.
 			# Continue to next chunk
+			print("Finished sending chunks {}".format(i))
+			i += 1
 
 def send(chunk, subscriber):
 	"""
@@ -100,14 +103,14 @@ def send(chunk, subscriber):
 	subscriber: IP address subscriber
 	"""
 	# TODO: bikin send buat StreamThread
-	pass 
-
+		# while True:
+    # 	s.send(chunk)
 
 def add_subscriber(stream_thread, subscriber):
     """
-	stream_thread: thread for streaming
-	subscriber: IP address for new subscriber
-	"""
+		stream_thread: thread for streaming
+		subscriber: IP address for new subscriber
+		"""
     stream_thread.add_subscriber(subscriber)
 
 
@@ -122,26 +125,39 @@ class ListenerThread(threading.Thread):
 		self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 		listener_address = socket.gethostbyname(socket.gethostname())
 		listener_bind = (listener_address, port)
+		print("Listener Bind {}".format(listener_bind))
 		self.sock.bind(listener_bind)
 		self.stream_thread = stream_thread
 
+	
 	def run(self):
+		dbg = 0
 		while True:
+			if dbg == 5:
+				break
 			p, address = self.sock.recvfrom(const.MAX_PACKET_LENGTH)
 			# TODO: Ngirim paket metadata
-			print("Metadata: ".format(self.metadata))
-			print("Receiver address: ".format(address))
-			break
+			
+			s_thread = SenderThread(fpath=self.fpath, server_address=address, chunk=[], final=False, meta=True)
+			s_thread.start()
+			s_thread.join()
+			add_subscriber(self.stream_thread, address)
+
+			print("Metadata: {}".format(self.metadata))
+			print("Message from client: {}".format(p.decode('utf-8')))
+			print("Receiver address: {}".format(address))
+			
+			dbg += 1
+			# break
 			# self.sock.sendto(, address)
 			# TODO: Add subscriber
-			# add_subscriber(self.stream_thread, address)
 
-def get_ip():
-	return str([(
-		s.connect(('8.8.8.8', 80)),
-		s.getsockname()[0],
-		s.close()) 
-	for s in [socket.socket(socket.AF_INET, socket.SOCK_DGRAM)]][0][1])
+# def get_ip():
+# 	return str([(
+# 		s.connect(('8.8.8.8', 80)),
+# 		s.getsockname()[0],
+# 		s.close()) 
+# 	for s in [socket.socket(socket.AF_INET, socket.SOCK_DGRAM)]][0][1])
 
 def recv_packet(sock):
 	data, addr = sock.recvfrom(const.MAX_PACKET_LENGTH)
@@ -163,10 +179,12 @@ def to_addresses(addresses, port):
 if __name__ == "__main__":
 
 	port = int(sys.argv[1])
+	# port2 = int(sys.argv[3])
 	fpath = sys.argv[2]
 			
 	wav = WavHandler(fpath)
 	metadata = wav.metadata
+	print("Metadata: {}".format(metadata))
 	RECV_PORT = int(input("Input port of receivers: "))
 
 	stream_thread = StreamThread(fpath=fpath, subscribers=[])
@@ -177,3 +195,4 @@ if __name__ == "__main__":
 
 	print("Start sending audio packets...")
 	stream_thread.start()
+	print("Pretest Passed")
