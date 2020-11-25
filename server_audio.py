@@ -31,6 +31,7 @@ class SenderThread(threading.Thread):
 
     def run(self):
         self.send_packet()
+        print()
         print("Sending packet to {}.".format(self.server_address))
 
 
@@ -161,6 +162,8 @@ if __name__ == "__main__":
         fpath=fpath, stream_thread=stream_thread, port=port, wav=wav
     )
     listener_thread.start()
+
+    input("Press any key to start...")
 
     print("Start sending audio packets...")
     stream_thread.start()
