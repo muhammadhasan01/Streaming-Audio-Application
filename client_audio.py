@@ -1,9 +1,10 @@
 import sys 
 import pyaudio
 import socket
-import sender_protocol.const as const
 import json
 import threading
+sys.path.insert(1, './utils')
+import const as const
 
 def add_chunk(player_thread, chunk):
     player_thread.add_chunk(chunk)
@@ -31,7 +32,7 @@ class PlayerThread(threading.Thread):
         idx = 0
         while not self.is_stopped:
             if len(self.audio_buffer) > idx:
-                print("Writing stream...")
+                print("Writing received stream number", idx + 1)
                 self.stream.write(self.audio_buffer[idx])
                 idx += 1
     
@@ -48,6 +49,7 @@ class DownloaderThread(threading.Thread):
         while True:
             chunk, address = self.sock.recvfrom(const.MAX_PACKET_LENGTH)
             if (chunk == bytes(const.STOP_MESSAGE, "utf-8")):
+                print("Streaming from server has finished!")
                 self.player_thread.stop()
                 break
             add_chunk(self.player_thread, chunk)

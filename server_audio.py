@@ -2,11 +2,11 @@ import sys
 import socket
 import time
 import threading
-import sender_protocol.packet as packet
-import sender_protocol.const as const
-from wavhandler import WavHandler
 import json
-
+sys.path.insert(1, './utils')
+import packet
+import const
+from wavhandler import WavHandler
 
 class SenderThread(threading.Thread):
     def __init__(self, fpath, server_address, chunk, wav, final=False, meta=False):
@@ -17,7 +17,6 @@ class SenderThread(threading.Thread):
         self.final = final
         self.meta = meta
         self.wav = wav
-        self.stopped = False
 
     def get_data(self):
         if self.meta:
@@ -30,14 +29,9 @@ class SenderThread(threading.Thread):
         data = self.get_data()
         self.sock.sendto(data, self.server_address)
 
-    def stop(self):
-        self.stopped = True
-
     def run(self):
-        while not self.stopped:
-            self.send_packet()
-            print("Packet is being sent to {}.".format(self.server_address))
-            break
+        self.send_packet()
+        print("Sending packet to {}.".format(self.server_address))
 
 class StreamThread(threading.Thread):
     def __init__(self, fpath, subscribers, wav):
@@ -64,7 +58,7 @@ class StreamThread(threading.Thread):
         step = 0
         self.chunks.append(bytes(const.STOP_MESSAGE, "utf-8"))
         for chunk in self.chunks:
-            print("Start sending chunks {}".format(step))
+            print("\nStart sending chunks {}".format(step))
             startTime = time.time()
             sending_threads = [
                 SenderThread(
@@ -77,7 +71,7 @@ class StreamThread(threading.Thread):
                 )
                 for subscriber in self.subscribers
             ]
-            print("Number of subscriber in step {}: {}".format(step, len(self.subscribers)))
+            print("Number of subscribers in step {}: {}".format(step, len(self.subscribers)))
             print(
                 "Number of active threads in step {}: {}".format(
                     step, len(sending_threads)
@@ -96,6 +90,7 @@ class StreamThread(threading.Thread):
             # Continue to next chunk
             print("Finished sending chunks {}".format(step))
             step += 1
+	# TODO: Exit Program
 
 def add_subscriber(stream_thread, subscriber):
     """
@@ -103,7 +98,6 @@ def add_subscriber(stream_thread, subscriber):
     subscriber: IP address for new subscriber
     """
     stream_thread.add_subscriber(subscriber)
-
 
 class ListenerThread(threading.Thread):
     def __init__(self, fpath, stream_thread, port, wav):
@@ -114,7 +108,7 @@ class ListenerThread(threading.Thread):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         listener_address = socket.gethostbyname(socket.gethostname())
         listener_bind = (listener_address, port)
-        print("Binding server to (address, port) = {}".format(listener_bind))
+        print("\nBinding server to (address, port) = {}".format(listener_bind))
         self.sock.bind(listener_bind)
         self.stream_thread = stream_thread
 
@@ -134,7 +128,7 @@ class ListenerThread(threading.Thread):
             s_thread.join()
             add_subscriber(self.stream_thread, address)
 
-            print("Metadata: {}".format(self.metadata))
+            print("\nMetadata: {}".format(self.metadata))
             print("Message from client: {}".format(p.decode("utf-8")))
             print("Receiver address: {}".format(address))
 
