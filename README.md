@@ -18,7 +18,8 @@ runserver.sh 5555 ./sample_wav/hallking.wav
 runclient.sh 192.168.1.46
 ```
 
-**Note**: To find your own IPAddress server you can type in `ipconfig/all` on a terminal and find the value of **IPv4 Address**.
+**Note**: <br/>
+To find your own IPAddress server you can type in `ipconfig/all` on a terminal and find the value of **IPv4 Address**.
 
 ## Contributors
 | Name              | NIM      |
