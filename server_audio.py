@@ -103,7 +103,7 @@ def add_subscriber(stream_thread, subscriber):
 
 class ListenerThread(threading.Thread):
     def __init__(self, fpath, stream_thread, port, wav):
-        super(ListenerThread, self).__init__()
+        super(ListenerThread, self).__init__(daemon = True)
         self.fpath = fpath
         self.wav = wav
         self.metadata = self.wav.metadata
