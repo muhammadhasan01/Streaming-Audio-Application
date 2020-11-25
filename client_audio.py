@@ -11,7 +11,6 @@ def add_chunk(player_thread, chunk):
 class PlayerThread(threading.Thread):
     def __init__(self, dictionary_meta_data):
         super(PlayerThread, self).__init__()
-        # self.chunk = chunk
         print("Configuring PyAudio from metadata...")
         pAudio = pyaudio.PyAudio()
         self.stream = pAudio.open(

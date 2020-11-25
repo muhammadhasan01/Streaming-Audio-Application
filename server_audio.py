@@ -39,6 +39,7 @@ class SenderThread(threading.Thread):
             print("Packet is being sent to {}.".format(self.server_address))
             break
 
+
 class StreamThread(threading.Thread):
     def __init__(self, fpath, subscribers, wav):
         super(StreamThread, self).__init__()
@@ -71,13 +72,14 @@ class StreamThread(threading.Thread):
                     fpath=self.fpath,
                     server_address=subscriber,
                     chunk=chunk,
-					wav=self.wav,
+                    wav=self.wav,
                     final=False,
                     meta=False,
                 )
                 for subscriber in self.subscribers
             ]
-            print("Number of subscriber in step {}: {}".format(step, len(self.subscribers)))
+            print("Number of subscriber in step {}: {}".format(
+                step, len(self.subscribers)))
             print(
                 "Number of active threads in step {}: {}".format(
                     step, len(sending_threads)
@@ -96,6 +98,7 @@ class StreamThread(threading.Thread):
             # Continue to next chunk
             print("Finished sending chunks {}".format(step))
             step += 1
+
 
 def add_subscriber(stream_thread, subscriber):
     """
@@ -126,7 +129,7 @@ class ListenerThread(threading.Thread):
                 fpath=self.fpath,
                 server_address=address,
                 chunk=[],
-				wav=self.wav,
+                wav=self.wav,
                 final=False,
                 meta=True,
             )
@@ -138,16 +141,19 @@ class ListenerThread(threading.Thread):
             print("Message from client: {}".format(p.decode("utf-8")))
             print("Receiver address: {}".format(address))
 
+
 def recv_packet(sock):
     data, addr = sock.recvfrom(const.MAX_PACKET_LENGTH)
     p = packet.Packet.to_packet(data)
     return p, addr
+
 
 def to_addresses(addresses, port):
     server_addresses = []
     for address in addresses:
         server_addresses.append((address, port))
     return server_addresses
+
 
 if __name__ == "__main__":
     port = int(sys.argv[1])

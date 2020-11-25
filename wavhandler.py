@@ -1,10 +1,11 @@
 import wave
 import sys
-import pyaudio  
+import pyaudio
 import sender_protocol.const as const
 import math
 
-CHUNK_SIZE = 32767 # In bytes.
+CHUNK_SIZE = 32767  # In bytes.
+
 
 class WavHandler():
     def __init__(self, fpath):
@@ -16,38 +17,38 @@ class WavHandler():
         num_frames = self.file.getnframes()
         self.metadata = {
             "sample_width": self.file.getsampwidth(),
-            "num_channels": self.file.getnchannels(), 
+            "num_channels": self.file.getnchannels(),
             "sample_rate": self.file.getframerate()
         }
         self.chunks = self.get_chunks_audio()
 
     def play_wav_audio(self):
-        #define stream chunk   
+        # define stream chunk
         chunk = 1024
 
-        #open a wav format music  
+        # open a wav format music
         f = self.file
-        #instantiate PyAudio  
-        player = pyaudio.PyAudio()  
-        #open stream  
-        stream = player.open(format = player.get_format_from_width(f.getsampwidth()),  
-                        channels = f.getnchannels(),  
-                        rate = f.getframerate(),  
-                        output = True)  
-        #read data  
-        data = f.readframes(chunk)  
+        # init PyAudio
+        player = pyaudio.PyAudio()
+        # open stream
+        stream = player.open(format=player.get_format_from_width(f.getsampwidth()),
+                             channels=f.getnchannels(),
+                             rate=f.getframerate(),
+                             output=True)
+        # read data
+        data = f.readframes(chunk)
 
-        #play stream  
-        while data:  
-            stream.write(data)  
-            data = f.readframes(chunk)  
+        # play stream
+        while data:
+            stream.write(data)
+            data = f.readframes(chunk)
 
-        #stop stream  
-        stream.stop_stream()  
-        stream.close()  
+        # stop stream
+        stream.stop_stream()
+        stream.close()
 
-        #close PyAudio  
-        player.terminate()  
+        # close PyAudio
+        player.terminate()
 
     def get_metadata_audio(self):
         return self.metadata
@@ -57,11 +58,10 @@ class WavHandler():
         sampleWidth = self.metadata["sample_width"]
         frameRate = self.metadata["sample_rate"]
 
-        frameSize = nChannels * sampleWidth # In bytes
+        frameSize = nChannels * sampleWidth  # In bytes
         frameCountPerChunk = CHUNK_SIZE / frameSize
 
-        chunkTime = 1000 * frameCountPerChunk / frameRate # In milliseconds.
-        #chunks = make_chunks(self.file, chunkTime) #Make chunks of one sec
+        chunkTime = 1000 * frameCountPerChunk / frameRate  # In milliseconds.
         print("---- START MAKING CHUNKS ----")
         chunks = []
         chunks_bytes = self.file.readframes(self.file.getnframes())
@@ -70,9 +70,13 @@ class WavHandler():
             if (i + 1) * chunk_size + 44 > len(chunks_bytes):
                 chunks.append(chunks_bytes[i * chunk_size + 44:])
             else:
-                chunks.append(chunks_bytes[i * chunk_size + 44: (i + 1) * chunk_size + 44])
+                chunks.append(
+                    chunks_bytes[
+                        i * chunk_size + 44: (i + 1) * chunk_size + 44
+                    ]
+                )
             print("Size chunk", i, "=", len(chunks[i]))
-        
+
         print("Number of of Chunks: {}".format(len(chunks)))
         print("Chunks: {}".format(chunks_bytes[: 5]))
         print("---- FINISH MAKING CHUNKS ----")
