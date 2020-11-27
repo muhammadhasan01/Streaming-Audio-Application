@@ -1,4 +1,4 @@
-# Tugas Besar 2 Jaringan Komputer (IF3130) - Simple Audio Streaming Application
+# Simple Audio Streaming Application
 
 Simple Audio Streaming Application is an application to stream audio file especially wav file from a server to multiple clients made with Python
 
